@@ -14,7 +14,7 @@ from tokenizers import Tokenizer
 from tokenizers.models import BPE
 from tokenizers.trainers import BpeTrainer
 
-from mygpt.nn import Linear
+from mygpt.nn import Linear, Embedding
 
 
 def run_linear(
@@ -58,8 +58,10 @@ def run_embedding(
     Returns:
         Float[Tensor, "... d_model"]: Batch of embeddings returned by your Embedding layer.
     """
-
-    raise NotImplementedError
+    embedding = Embedding(vocab_size, d_model)
+    embedding.weights = weights
+    value = embedding.forward(token_ids)
+    return value
 
 
 def run_swiglu(
