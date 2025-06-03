@@ -4,11 +4,15 @@ import os
 from typing import IO, Any, BinaryIO
 from collections.abc import Iterable
 from jaxtyping import Float, Int
+import tempfile
 
 import numpy.typing as npt
 import torch
 from torch import Tensor
 
+from tokenizers import Tokenizer
+from tokenizers.models import BPE
+from tokenizers.trainers import BpeTrainer
 
 
 def run_linear(
@@ -588,4 +592,34 @@ def run_train_bpe(
                 representing that <token1> was merged with <token2>.
                 Merges are ordered by order of creation.
     """
-    raise NotImplementedError
+    tokenizer = Tokenizer(BPE())
+    trainer = BpeTrainer(
+        special_tokens=special_tokens,  # e.g. ["[UNK]", "[CLS]", "[SEP]", "[PAD]", "[MASK]"]
+        max_token_length=vocab_size,
+    )
+    tokenizer.train(files=[str(input_path)], trainer=trainer)
+
+    # Convert to tokenID: bytes
+    vocab = {v: k.encode('utf-8') for k, v in tokenizer.get_vocab().items()}
+
+    # we cannot access to merges, but can obtain via tokenizer.save()
+    # https://github.com/huggingface/tokenizers/blob/main/tokenizers/src/models/bpe/trainer.rs
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tokenizer.model.save(tmpdir)
+
+        # #version: 0.2
+        # e
+        # s
+        # t h
+        merges_path = os.path.join(tmpdir, "merges.txt")
+
+        merges = []
+        with open(merges_path, encoding="utf-8") as f:
+            lines = f.readlines()
+
+        for line in lines[1:]:  # skip first line "#version: 0.2"
+            parts = line.strip().split()
+            if len(parts) == 2:
+                merges.append((parts[0].encode("utf-8"), parts[1].encode("utf-8")))
+
+    return vocab, merges
