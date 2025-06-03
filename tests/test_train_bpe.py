@@ -26,7 +26,8 @@ def test_train_bpe_speed():
     assert end_time - start_time < 1.5
 
 
-# TODO(c-bata): update implementation to pass tests
+# TODO(c-bata): As described in the above issue, BPE merges across the special tokens during the training process.
+# https://github.com/huggingface/tokenizers/issues/1616
 # def test_train_bpe():
 #     input_path = FIXTURES_PATH / "corpus.en"
 #     vocab, merges = run_train_bpe(
