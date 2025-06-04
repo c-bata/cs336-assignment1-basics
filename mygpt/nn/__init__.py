@@ -48,3 +48,30 @@ class Embedding(torch.nn.Module):
     def forward(self, token_ids: torch.Tensor) -> torch.Tensor:
         # Lookup the embedding vector for the given token IDs.
         return self.weights[token_ids]
+
+
+class RMSNorm(torch.nn.Module):
+    def __init__(
+        self,
+        d_model: int,  # Hidden dimension of the model
+        eps: float = 1e-5,  # Epsilon value for numerical stability
+        device: torch.device | None = None,
+        dtype: torch.dtype | None = None,
+    ) -> None:
+        super().__init__()
+
+        weights: Float[torch.Tensor, "d_model"] = torch.ones(
+            d_model,
+            device=device,
+            dtype=dtype
+        )
+        self.weights = torch.nn.Parameter(weights)
+        self.eps = eps
+    
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        in_dtype = x.dtype
+        x = x.to(torch.float32)
+        d_model = self.weights.shape[0]
+        rms = torch.sqrt(1 / d_model * torch.einsum('ijk->ij', x ** 2) + self.eps)
+        result = x / rms.unsqueeze(-1) * self.weights
+        return result.to(in_dtype)
