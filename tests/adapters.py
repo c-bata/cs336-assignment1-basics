@@ -36,8 +36,12 @@ def run_linear(
         Float[Tensor, "... d_out"]: The transformed output of your linear module.
     """
     linear = Linear(d_in, d_out)
-    linear.weights = weights
-    return linear.forward(in_features)
+    assert linear.weights.shape == weights.shape
+
+    linear.load_state_dict({
+        "weights": weights,
+    })
+    return linear(in_features)
 
 
 def run_embedding(
@@ -59,9 +63,12 @@ def run_embedding(
         Float[Tensor, "... d_model"]: Batch of embeddings returned by your Embedding layer.
     """
     embedding = Embedding(vocab_size, d_model)
-    embedding.weights = weights
-    value = embedding.forward(token_ids)
-    return value
+    assert embedding.weights.shape == weights.shape
+
+    embedding.load_state_dict({
+        "weights": weights
+    })
+    return embedding(token_ids)
 
 
 def run_swiglu(
@@ -567,7 +574,16 @@ def get_tokenizer(
     Returns:
         A BPE tokenizer that uses the provided vocab, merges, and special tokens.
     """
-    raise NotImplementedError
+    str_vocab = {token.decode("utf-8"): id_ for id_, token in vocab.items()}
+    str_merges = ["{} {}".format(a.decode("utf-8"), b.decode("utf-8")) for a, b in merges]
+
+    bpe = BPE(vocab=str_vocab, merges=str_merges, dropout=None)
+    tokenizer = Tokenizer(bpe)
+
+    if special_tokens:
+        tokenizer.add_special_tokens(special_tokens)
+
+    return tokenizer
 
 
 def run_train_bpe(

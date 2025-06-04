@@ -1,4 +1,5 @@
 import torch.nn
+from jaxtyping import Float
 
 
 class Linear(torch.nn.Module):
@@ -9,20 +10,16 @@ class Linear(torch.nn.Module):
         device: torch.device | None = None,
         dtype: torch.dtype | None = None
     ) -> None:
-        mean = torch.zeros((out_features, in_features), dtype=dtype)
-        self._weights = torch.normal(mean, 3)
+        super().__init__()
 
-        if device is not None:
-            self.weights.to(device=device)
-
-    @property
-    def weights(self) -> torch.Tensor:
-        return self._weights
-    
-    @weights.setter
-    def weights(self, w) -> None:
-        assert self._weights.shape == w.shape
-        self._weights = w
+        sigma = (2 / (in_features + out_features)) ** 0.5
+        weights: Float[torch.Tensor, "out_features in_features"] = torch.empty(
+            (out_features, in_features),
+            device=device,
+            dtype=dtype
+        )
+        torch.nn.init.trunc_normal_(weights, 0, sigma, -3 * sigma, 3 * sigma)
+        self.weights = torch.nn.Parameter(weights)
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # y = x・W^t
@@ -38,20 +35,16 @@ class Embedding(torch.nn.Module):
         device: torch.device | None = None,
         dtype: torch.dtype | None = None,
     ) -> None:
-        mean = torch.zeros((num_embeddings, embedding_dim), dtype=dtype)
-        self._weights = torch.normal(mean, 1)
-        if device is not None:
-            self._weights.to(device)
+        super().__init__()
 
-    @property
-    def weights(self) -> torch.Tensor:
-        return self._weights
-    
-    @weights.setter
-    def weights(self, w) -> None:
-        assert self._weights.shape == w.shape
-        self._weights = w
+        weights: Float[torch.Tensor, "num_embeddings embedding_dim"] = torch.empty(
+            (num_embeddings, embedding_dim),
+            device=device,
+            dtype=dtype
+        )
+        torch.nn.init.trunc_normal_(weights, 0, 1, -3, 3)
+        self.weights = torch.nn.Parameter(weights)
     
     def forward(self, token_ids: torch.Tensor) -> torch.Tensor:
         # Lookup the embedding vector for the given token IDs.
-        return self._weights[token_ids]
+        return self.weights[token_ids]
