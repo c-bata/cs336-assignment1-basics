@@ -75,3 +75,42 @@ class RMSNorm(torch.nn.Module):
         rms = torch.sqrt(1 / d_model * torch.einsum('ijk->ij', x ** 2) + self.eps)
         result = x / rms.unsqueeze(-1) * self.weights
         return result.to(in_dtype)
+
+
+class SwiGLU(torch.nn.Module):
+    def __init__(
+        self,
+        # d_model (int): Dimensionality of the feedforward input and output.
+        d_model: int,
+        # d_ff (int): Dimensionality of the up-project happening internally to your swiglu.
+        d_ff: int,
+        device: torch.device | None = None,
+        dtype: torch.dtype | None = None,
+    ) -> None:
+        super().__init__()
+
+        w1: Float[torch.Tensor, "d_ff d_model"] = torch.empty(
+            (d_ff, d_model),
+            device=device,
+            dtype=dtype
+        )
+        w2: Float[torch.Tensor, "d_model d_ff"] = torch.empty(
+            (d_model, d_ff),
+            device=device,
+            dtype=dtype
+        )
+        w3: Float[torch.Tensor, "d_ff d_model"] = torch.empty(
+            (d_ff, d_model),
+            device=device,
+            dtype=dtype
+        )
+
+        self.w1 = torch.nn.Parameter(w1)
+        self.w2 = torch.nn.Parameter(w2)
+        self.w3 = torch.nn.Parameter(w3)
+    
+    def forward(self, x: Float[torch.Tensor, "... d_model"]) -> torch.Tensor:
+        silu_input = torch.einsum("... d, fd -> ... f", x, self.w1)  # x @ self.w1.T
+        silu_output: Float[torch.Tensor, "... d_ff"] = silu_input / (1 + torch.exp(-silu_input))
+        silu_output *= torch.einsum("... d, fd -> ... f", x, self.w3)
+        return torch.einsum("... f, df -> ... d", silu_output, self.w2)

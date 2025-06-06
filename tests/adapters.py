@@ -14,7 +14,7 @@ from tokenizers import Tokenizer
 from tokenizers.models import BPE
 from tokenizers.trainers import BpeTrainer
 
-from mygpt.nn import Linear, Embedding, RMSNorm
+from mygpt.nn import Linear, Embedding, RMSNorm, SwiGLU
 
 
 def run_linear(
@@ -93,14 +93,16 @@ def run_swiglu(
     Returns:
         Float[Tensor, "... d_model"]: Output embeddings of the same shape as the input embeddings.
     """
-    # Example:
-    # If your state dict keys match, you can use `load_state_dict()`
-    # swiglu.load_state_dict(weights)
-    # You can also manually assign the weights
-    # swiglu.w1.weight.data = w1_weight
-    # swiglu.w2.weight.data = w2_weight
-    # swiglu.w3.weight.data = w3_weight
-    raise NotImplementedError
+    swiglu = SwiGLU(d_model, d_ff)
+    assert swiglu.w1.shape == w1_weight.shape
+    assert swiglu.w2.shape == w2_weight.shape
+    assert swiglu.w3.shape == w3_weight.shape
+    swiglu.load_state_dict({
+        "w1": w1_weight,
+        "w2": w2_weight,
+        "w3": w3_weight
+    })
+    return swiglu(in_features)
 
 
 def run_scaled_dot_product_attention(
